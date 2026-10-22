@@ -1,0 +1,25 @@
+Původní očekávaný nákup:
+
+2x ESP-WROOM-32U; Cena = 426Kč
+2x 18650 baterie; Cena = 138Kč
+2x Nabíjecí modul TP4056; Cena = 76Kč
+1x Čtečka; Cena = 60Kč
+1x Displej; Cena = 93Kč
+1x Anténa přijímač; Cena = 40Kč
+1x Anténa vysílač; Cena = 75Kč
+2x Stojan na baterie 18650 = 26Kč
+
+
+Cena přijímač: 526Kč nová cena:
+Cena vysílač: 408Kč nová cena:
+Celková cena: 934Kč nová cena:
+
+Nákup po obdržení součástek: 
+
+2x Displej(žlutá barva); Cena = 186Kč
+3x 18650 baterie; Cena = 207Kč
+3x Držák 18650 baterie; Cena = 39Kč
+1x Set DuPont kabelů; Cena = 33Kč
+3x Modul TP4056; Cena = 72Kč
+
+Cena celkem: 537Kč a to za tři zařízení (2x přijímač a 1x vysílač)
