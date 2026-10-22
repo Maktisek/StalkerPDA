@@ -131,7 +131,7 @@ Jako NFC čtečku jsem zvolil \textit{RFID RC522}, protože je kompatibilní se 
 Jako displej jsem zvolil \textit{0.96" OLED displej (I2C)}. Je malý a kompaktní, má malou spotřebu (protože je OLED) a má vysoké rozlišení (128x64 bodů). Dokonce lze zakoupit variantu podporující žlutou barvu, což se pro radiační tematiku hodí. 
 
 \subsection{Napájení}
-Vybrat vhodné napájení je ten největší problém. Je zapotřebí obstarat takovou baterii, aby byla schopna celé zapojení utáhnout a hned se nevybít. Proto jsem si vybral klasickou baterii \textit{18650 2500mAh}. Tato baterie by dle očekávání měla vydržet napájet celý přístroj po dobu cca 15 hodin. Je také malá, lehká, kompaktní a jednoduše se zastrčí do držáku.
+Vybrat vhodné napájení je ten největší problém. Je zapotřebí obstarat takovou baterii, aby byla schopna celé zapojení utáhnout a hned se nevybít. Proto jsem si vybral klasickou baterii \textit{18650 3000mAh}. Tato baterie by dle očekávání měla vydržet napájet celý přístroj po dobu cca 15 hodin. Je také malá, lehká, kompaktní a jednoduše se zastrčí do držáku.
 
 \noindent Aby bylo možné tuto baterii využít, musím ji nějakým způsobem zavézt do modulu a ohlídat podvybití. K tomuto mi poslouží nabíjecí modul \textit{TP4056}. Baterka se k němu jen připájí a od té doby bude její stav pod kontrolou. Je ovšem potřeba pořídit ten správný modul, protože na trhu jsou dva. Ten správný musí obsahovat \textbf{4} pájecí plošky (B+,B-,OUT+,OUT-).
 
@@ -164,7 +164,7 @@ Další výhodou je, že v balení od táty se nachází i můj požadovaný dis
 Zde je seznam všech dílů, které musím pro první prototypy externě dokoupit:
 \begin{itemize}
     \item \textbf{2x} \textit{0.96" OLED displej (I2C)} žluté barvy
-    \item \textbf{3x} baterie \textit{18650 2500mAh}
+    \item \textbf{3x} baterie \textit{18650 3000mAh}
     \item \textbf{3x} modul \textit{TP4056}
     \item \textbf{1x} nepájivé pole (pro prototyp)
 \end{itemize}
