@@ -1,0 +1,171 @@
+    \documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[czech]{babel} 
+\usepackage{lmodern}
+\usepackage[margin=2.5cm, headheight=14pt]{geometry}
+\usepackage{fancyhdr}         
+\pagestyle{fancy}
+\fancyhf{}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\usepackage{amsmath, amsfonts}
+\usepackage[most]{tcolorbox}
+\usepackage{xcolor}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tocloft}
+\usepackage{minted}
+\usemintedstyle{one-dark}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+\setlength{\cftsecnumwidth}{2em}
+
+\DeclareMathOperator{\inDFS}{in}
+\DeclareMathOperator{\outDFS}{out}
+\DeclareMathOperator{\short}{d}
+\DeclareMathOperator{\route}{D}
+\DeclareMathOperator{\wei}{w}
+\DeclareMathOperator{\score}{f}
+
+
+\definecolor{modra}{RGB}{66, 153, 255}
+\definecolor{cervena}{RGB}{232, 25, 11}
+\definecolor{zelena}{RGB}{16, 150, 22}
+\definecolor{oranzova}{RGB}{232, 160, 26}
+
+\newtcolorbox{modrybox}[1]{
+  colback=gray!5!white,       % Pozadí těla (velmi světle šedá)
+  colframe=modra,            % Barva rámečku a hlavičky
+  coltitle=white,             % Barva textu v hlavičce
+  fonttitle=\bfseries,        % Tučný text v hlavičce
+  title=#1,                   % Text v hlavičce předaný jako parametr
+  arc=3mm,                    % Zaoblení rohů
+  boxrule=1pt,                % Tloušťka vnějšího rámečku
+  enhanced,
+}
+
+\newtcolorbox{cervenybox}[1]{
+  colback=gray!5!white,       % Pozadí těla (velmi světle šedá)
+  colframe=cervena,            % Barva rámečku a hlavičky
+  coltitle=white,             % Barva textu v hlavičce
+  fonttitle=\bfseries,        % Tučný text v hlavičce
+  title=#1,                   % Text v hlavičce předaný jako parametr
+  arc=3mm,                    % Zaoblení rohů
+  boxrule=1pt,                % Tloušťka vnějšího rámečku
+  enhanced,
+}
+
+\newtcolorbox{zelenybox}[1]{
+  colback=gray!5!white,       % Pozadí těla (velmi světle šedá)
+  colframe=zelena,            % Barva rámečku a hlavičky
+  coltitle=white,             % Barva textu v hlavičce
+  fonttitle=\bfseries,        % Tučný text v hlavičce
+  title=#1,                   % Text v hlavičce předaný jako parametr
+  arc=3mm,                    % Zaoblení rohů
+  boxrule=1pt,                % Tloušťka vnějšího rámečku
+  enhanced,
+}
+
+\newtcolorbox{oranzovybox}[1]{
+  colback=gray!5!white,       % Pozadí těla (velmi světle šedá)
+  colframe=oranzova,            % Barva rámečku a hlavičky
+  coltitle=white,             % Barva textu v hlavičce
+  fonttitle=\bfseries,        % Tučný text v hlavičce
+  title=#1,                   % Text v hlavičce předaný jako parametr
+  arc=3mm,                    % Zaoblení rohů
+  boxrule=1pt,                % Tloušťka vnějšího rámečku
+  enhanced,
+}
+
+
+\begin{document}
+
+\noindent {\small Počítačové sítě a systémy}
+
+\vspace{0.4em}
+
+\noindent {\Huge\bfseries Simulátor radiace} 
+
+\vspace{0.3em}
+
+\noindent {\Large Dokumentace a rozbor projektu}
+
+\vspace{0.7em}
+
+\noindent \textbf{Autor:} Matěj Pospíšil
+
+\noindent \textbf{Datum:} \today
+
+\vspace{1.2em}
+\hrule
+\vspace{1.7em}
+
+\tableofcontents
+
+\newpage
+
+\section{Úvod}
+\subsection{Představení a ambice}
+Mým vybraným projektem je přístroj simulující radiační záření v podobě systému vysílač-přijímač určený pro airsoft či jiné larp akce. Rád bych tímto projektem došel k takové verzi, která bude již alespoň základně využitelná v praxi. Mým cílem je mimo jiné snížit výrobní náklady na minimum, protože přijímačů pro reálnou praxi potřebuji nejméně 10.
+\subsection{Funkčnost a plán}
+Hráči po lese rozsejí vysílače a každý z nich obdrží přijímač jako PDA. PDA bude neustále skenovat pro vybrané vysílače a vždy si vybere ten nejsilnější signál. Podle jeho síly bude hráči ubírat herní životy a podle MAC adresy vysílače bude určovat momentální lokaci, v níž se hráč nachází. Každé PDA bude mít svůj displej ukazující počet životů a intenzitu radiace a také NFC čtečku, která umožní hráči doplnit životy, vyléčit radiaci či se proti radiaci \uv{obrnit}. Celý tento systém bude zabalený v malé 3D tištěné voděodolné krabičce.
+
+\section{Potřebné komponenty}
+\subsection{Mikrokontrolér}
+Jako mikrokontrolér jsem zvolil \textit{ESP32-WROOM-32U}, protože má v sobě již zabudovaný WiFi vysílač/přijímač a také tento model umožňuje možnou a snadnou instalaci pomocné antény. Pomocná anténa bude důležitým prvkem, protože stromy, keře a listí velmi silně pohlcují rádiové vlny. Bez případné antény by byl rozsah vysílání maličký. Jako pomocnou anténu do PDA jsem zvolil samolepicí WiFi anténu \textit{GSM 2.4GHz, 4dBi}, kterou pak jen přilepím zevnitř na stranu krabičky. Pro samotný vysílač jsem zvolil anténu \textit{2.4GHz 3dBi lomená s kabelem IPEX U.FL SMA všesměrová}, která zvýší pole působení mnohonásobně. 
+
+\noindent Vzhledem k tomu, že tento modul umí jak vysílat tak přijímat, bude celý proces výroby jednotný a budu moct využívat naprosto stejného vývojového prostředí. Modul je také kompatibilní s Arduino, což mou práci jen usnadní.
+
+\subsection{NFC čtečka}
+Jako NFC čtečku jsem zvolil \textit{RFID RC522}, protože je kompatibilní se zvoleným modulem (komunikuje přes SPI sběrnici). Běžně se tato čtečka používá pro různé aplikace v systémech kontroly, ale pro můj projekt bude stačit, když bude načítat NFC tagy.  
+
+\subsection{Displej}
+Jako displej jsem zvolil \textit{0.96" OLED displej (I2C)}. Je malý a kompaktní, má malou spotřebu (protože je OLED) a má vysoké rozlišení (128x64 bodů). Dokonce lze zakoupit variantu podporující žlutou barvu, což se pro radiační tematiku hodí. 
+
+\subsection{Napájení}
+Vybrat vhodné napájení je ten největší problém. Je zapotřebí obstarat takovou baterii, aby byla schopna celé zapojení utáhnout a hned se nevybít. Proto jsem si vybral klasickou baterii \textit{18650 2500mAh}. Tato baterie by dle očekávání měla vydržet napájet celý přístroj po dobu cca 15 hodin. Je také malá, lehká, kompaktní a jednoduše se zastrčí do držáku.
+
+\noindent Aby bylo možné tuto baterii využít, musím ji nějakým způsobem zavézt do modulu a ohlídat podvybití. K tomuto mi poslouží nabíjecí modul \textit{TP4056}. Baterka se k němu jen připájí a od té doby bude její stav pod kontrolou. Je ovšem potřeba pořídit ten správný modul, protože na trhu jsou dva. Ten správný musí obsahovat \textbf{4} pájecí plošky (B+,B-,OUT+,OUT-).
+
+\noindent Baterie se kvůli časové úspoře nebudou nabíjet, ale vyměňovat. Zařízení bude hráče upozorňovat o stavu baterie a na hráče bude muset být apelováno, aby stav baterie hlídali a vyměnili ji včas. Modul \textit{TP4056} sice chrání před podvybitím, ale je mnohem bezpečnější baterii vyměnit ještě před jeho zásahem.
+
+\section{Komponenty v prototypu}
+Můj táta už o takovýhle projekt v minulosti usiloval. Avšak to celé skončilo u nákupu hromady různých dílků. Požádal jsem ho o to, aby mi je svěřil. Prošel jsem si je všechny jednotlivě a rozhodl se, zda lze nějaký z mých naplánovaných dílků vyměnit. 
+
+\noindent Zde popíši, jaké díly vyměním za jaké: 
+
+\subsection{Mikrokontroléry}
+Původním plánem bylo využít \textit{ESP32-WROOM-32U}. Místo něj se využiji: 
+\begin{itemize}
+    \item \textbf{1x ESP32 S3 s 2.4G WiFi modulem} jakožto vysílač (je totiž možné nainstalovat anténu)
+    \item \textbf{2x ESP-32S s převodníkem CH340C} jakožto jeden jako vysílač a druhý jako přijímač
+\end{itemize}
+\noindent Bohužel jeden vysílač bude v prototypu slabší co se týče síly vysílaného signálu. Potřebuji ale mít dva vysílače, abych mohl kontrovat automatickou funkčnost přepnutí přijímaného signálu. 
+
+\noindent Co se týče antén ty se také nachází v balíčku překvapení. Bohužel mi není známý jejich původ. Jsou kompatibilní pouze s \textit{ESP32 S3}.
+
+\subsection{NFC čtečky}
+Výhoda pro NFC čtečky je, že v tátovým balení se nachází čtyři úplně stejné čtečky jaké jsem si naplánoval. Tedy \textit{RFID RC522}.
+
+\subsection{Displeje}
+Další výhodou je, že v balení od táty se nachází i můj požadovaný displej. Mám ale bohužel jen jeden, takže bude potřeba zbývající displeje dokoupit. Tento displej nemá žluté podsvícení.
+
+\noindent V balení se také nachází další displej, který ale umí zobrazovat pouze znaky na mřížce 16x2. Je také velký, proto není vhodný pro můj projekt.
+
+\subsection{Co je potřeba dokoupit}
+Zde je seznam všech dílů, které musím pro první prototypy externě dokoupit:
+\begin{itemize}
+    \item \textbf{2x} \textit{0.96" OLED displej (I2C)} žluté barvy
+    \item \textbf{3x} baterie \textit{18650 2500mAh}
+    \item \textbf{3x} modul \textit{TP4056}
+\end{itemize}
+
+\end{document}
