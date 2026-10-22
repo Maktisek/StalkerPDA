@@ -21,5 +21,6 @@ Nákup po obdržení součástek:
 3x Držák 18650 baterie; Cena = 39Kč
 1x Set DuPont kabelů; Cena = 33Kč
 3x Modul TP4056; Cena = 72Kč
+1x Nepájivé pole; Cena = 37Kč
 
-Cena celkem: 537Kč a to za tři zařízení (2x přijímač a 1x vysílač)
+Cena celkem: 574Kč a to za tři zařízení (2x přijímač a 1x vysílač)
