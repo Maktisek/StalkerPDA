@@ -169,8 +169,15 @@ Zde je seznam všech dílů, které musím pro první prototypy externě dokoupi
     \item \textbf{1x} nepájivé pole (pro prototyp)
 \end{itemize}
 
-\subsection{Kontstrukce prototypu}
-Prototyp bude konstruován ze součástek zmíněných výše v této kapitole. 
-Úplně první \textbf{testovací} prototyp bude realizován na nepájivým poli. 
-To je, protože je nebezpečné hned vše k sobě pájet, když ještě není jasné, zda bude systém fungovat. 
+\section{Konstrukce prototypu}
+První prototyp bude zkonstruován na nepájivém poli. Pár komponentů ale nemá 
+připájené piny pro připojení DuPont kabelů. Budu je muset prvně připájet.
+
+\subsection{Komponenty k prvotnímu pájení}
+Zde je seznam komponent, které budu muset spájet s piny: 
+\begin{itemize}
+  \item \textbf{3x} RFID RC522
+  \item \textbf{1x} ESP32 S3
+\end{itemize}
+
 \end{document}
