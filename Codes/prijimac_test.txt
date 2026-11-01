@@ -1,0 +1,115 @@
+//Importy pro displej
+#include <Wire.h>             // I2C komunikace pro displej
+#include <Adafruit_GFX.h>      // Grafická knihovna (kreslení textu, čar)
+#include <Adafruit_SSD1306.h>  // Ovládač konkrétního OLED displeje
+
+//Importy pro NFC čtečku
+#include <SPI.h>               // SPI komunikace pro NFC čtečku
+#include <MFRC522.h>           // Knihovna pro čtečku RC522
+
+//Importy pro Wi-Fi a ESP-NOW protokol
+#include <WiFi.h>              // Základní Wi-Fi stoh v ESP32
+#include <esp_now.h>           // Protokol ESP-NOW
+
+//Tvorba globálních instancí a jejich řídících pinů
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+#define SS_PIN 5   // Chip Select pro RC522
+#define RST_PIN 4  // Reset pin pro RC522
+MFRC522 rfc522(SS_PIN, RST_PIN);
+
+//Tvorba structu pro přijímaní dat
+typedef struct struct_message {
+  String name;
+  int transmitterID;     // ID vysílače (např. 1 = Anomálie A)
+  int radiationPower;    // Základní síla záření vysílače
+} struct_message;
+
+struct_message incomingData; // Proměnná pro uložení přijatých dat
+int lastRssi = 0;            // Hodnota síly signálu v dBm
+bool packetReceived = false; // Příznak, zda jsme zachytili paket
+
+// Callback zavolaný automaticky HW přerušením při přijetí zprávy
+void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingDataPtr, int len) {
+  // memcpy překopíruje syrové bajty z paměti přímo do naší struktury
+  memcpy(&incomingData, incomingDataPtr, sizeof(incomingData));
+  
+  // Získání hodnoty RSSI (síly signálu v dBm) z řídicí struktury paketu
+  lastRssi = info->rx_ctrl->rssi; 
+  packetReceived = true;
+}
+
+void setup() {
+  Serial.begin(115200); // Sériový monitor pro ladění na PC
+
+  // 1. Start OLED displeje na I2C adrese 0x3C
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED displej selhal!");
+    for(;;); // Nekonečná smyčka při chybě (stop)
+  }
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Hello, stalker...");
+  display.display();
+
+  // 2. Start NFC čtečky přes SPI
+  SPI.begin();
+  rfc522.PCD_Init();
+
+  // 3. Start ESP-NOW
+  WiFi.mode(WIFI_STA); // Wi-Fi v režimu stanice (požadováno pro ESP-NOW)
+  if (esp_now_init() == ESP_OK) {
+    // Registrace námi vytvořeného Event Listeneru / Callbacku
+    esp_now_register_recv_cb(OnDataRecv);
+  }
+}
+
+void loop() {
+  // Smazání vnitřního bufferu displeje
+  display.clearDisplay();
+  
+  // Nadpis
+  display.setCursor(0, 0);
+  display.println("PDA");
+
+  // --- BLOK 1: Zobrazení dat z radiace ---
+  display.setCursor(0, 16);
+  if (packetReceived) {
+    display.print("Vysilac ID: ");
+    display.println(incomingData.transmitterID);
+
+    display.print("Lokace:");
+    display.println(incomingData.name);
+    
+    display.print("RSSI signal: ");
+    display.print(lastRssi);
+    display.println(" dBm");
+  } else {
+    display.println("Hledam signal...");
+  }
+
+  // --- BLOK 2: Čtení NFC karty ---
+  display.setCursor(0, 42);
+  // Zjištění, zda je u čtečky přítomna nová karta a zda lze přečíst její UID
+  if (rfc522.PICC_IsNewCardPresent() && rfc522.PICC_ReadCardSerial()) {
+    display.print("NFC Tag: ");
+    // Vypíšeme bajty unikátního ID (UID) karty v hexadecimálním formátu
+    for (byte i = 0; i < rfc522.uid.size; i++) {
+      display.print(rfc522.uid.uidByte[i], HEX);
+    }
+    // Ukončení komunikace s daným tagem
+    rfc522.PICC_HaltA();
+  } else {
+    display.println("NFC: Cekam na tag...");
+  }
+
+  // Odeslání dat z bufferu do fyzického displeje
+  display.display();
+  
+  // Krátká pauza pro stabilizaci displeje a snížení zbytečného vytížení CPU
+  delay(150);
+}
