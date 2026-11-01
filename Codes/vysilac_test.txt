@@ -1,0 +1,59 @@
+#include <WiFi.h>
+#include <esp_now.h>
+
+// 1. DATOVÁ STRUKTURA
+// Musí mít přesně stejné položky a pořadí jako v přijímači!
+typedef struct struct_message {
+  String name;
+  int transmitterID;     // ID vysílače (např. 1 = Anomálie A)
+  int radiationPower;    // Základní síla záření
+} struct_message;
+
+// Vytvoření instance datového balíčku
+struct_message myData;
+
+// Broadcast MAC adresa (FF:FF:FF:FF:FF:FF) = "křič do celého okolí všem"
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+void setup() {
+  Serial.begin(115200);
+
+  // Přepnutí Wi-Fi rádia do režimu Stanice (WIFI_STA je nutné pro ESP-NOW)
+  WiFi.mode(WIFI_STA);
+
+  // Inicializace protokolu ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Chyba: ESP-NOW se nepodařilo spustit!");
+    return;
+  }
+
+  // Registrace příjemce ("peer") pro broadcast vysílání
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;      // 0 = aktuální Wi-Fi kanál
+  peerInfo.encrypt = false;  // Bez šifrování pro maximální rychlost
+  
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Chyba: Nepodařilo se přidat broadcast peer!");
+    return;
+  }
+
+  // Nastavení hodnot, které má tento konkrétní vysílač posílat
+  myData.transmitterID = 1;     // ID anomálie č. 1
+  myData.radiationPower = 100;  // Základní výkon radiace
+  myData.name = "Dead forest";
+}
+
+void loop() {
+  // Odeslání bajtů ze struktury 'myData' do vzduchu
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+
+  if (result == ESP_OK) {
+    Serial.println("Signál radiace odvysílán...");
+  } else {
+    Serial.println("Chyba při vysílání!");
+  }
+
+  // Vysíláme každých 300 ms (cca 3x za sekundu)
+  delay(300);
+}
