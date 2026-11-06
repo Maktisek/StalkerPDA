@@ -11,6 +11,9 @@
 #include <WiFi.h>              // Základní Wi-Fi stoh v ESP32
 #include <esp_now.h>           // Protokol ESP-NOW
 
+//Deklarace C++ funkcí
+#include <unordered_set>
+
 //Tvorba globálních instancí a jejich řídících pinů
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -24,21 +27,104 @@ MFRC522 rfc522(SS_PIN, RST_PIN);
 typedef struct struct_message {
   String name;
   int transmitterID;     // ID vysílače (např. 1 = Anomálie A)
-  int radiationPower;    // Základní síla záření vysílače
+  float radiationPower;    // Základní síla záření vysílače <0.5 - 1>
 } struct_message;
 
 struct_message incomingData; // Proměnná pro uložení přijatých dat
-int lastRssi = 0;            // Hodnota síly signálu v dBm
-bool packetReceived = false; // Příznak, zda jsme zachytili paket
+
+int lastRssi = 0;          
+int peakRssi = -90;
+int currentLeader = -1;
+bool packetReceived = false; 
+std::unordered_set<int> bannedAddrs; 
+
+//Tyto proměnné se starají o svůj vlastní systém segregace vysílačů
+int gotRssi = 0;
+int iterations = 0;
+int reset = 0;
+
+double radiation = 0;
+
 
 // Callback zavolaný automaticky HW přerušením při přijetí zprávy
 void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingDataPtr, int len) {
   // memcpy překopíruje syrové bajty z paměti přímo do naší struktury
   memcpy(&incomingData, incomingDataPtr, sizeof(incomingData));
-  
-  // Získání hodnoty RSSI (síly signálu v dBm) z řídicí struktury paketu
+
+  if(bannedAddrs.find(incomingData.transmitterID) != bannedAddrs.end()){
+      return;
+  }
+
   lastRssi = info->rx_ctrl->rssi; 
+  lastRssi *= incomingData.radiationPower;
+
+  if(lastRssi > peakRssi && incomingData.transmitterID != currentLeader){
+    bannedAddrs.insert(incomingData.transmitterID);
+    currentLeader = incomingData.transmitterID;
+    peakRssi = lastRssi;
+  }
+
+  if(incomingData.transmitterID != currentLeader){
+    return;
+  }
+
   packetReceived = true;
+  gotRssi = gotRssi + lastRssi;
+  iterations++;
+}
+
+double calculateAverageRssi(){
+  if(iterations == 0) return 0.0; //Pokud jeste nebyla namerena data
+  return (double) gotRssi/iterations; //Jak byl prumerne hrac ozaren
+}
+
+int calculateRadiationPercent(){
+  int avgRssi = calculateAverageRssi(); 
+  int clampedRssi = constrain(avgRssi, -90, -40); 
+  
+  // Převod z intervalu <-90, -40> na interval <0.0, 1.0>
+  // Rozdíl od -90 do -40 je přesně 50 jednotek
+  float normalized = (clampedRssi + 90.0f) / 50.0f; 
+  float curved = pow(normalized, 1.4f); 
+
+  return (int)(curved * 100.0f); 
+}
+
+double calculateDamage(int percent){
+  Serial.println("The percent is");
+  Serial.println(percent);
+    switch (percent) {
+  case 0 ... 16:
+    //VELMI NÍZKÉ NEBEZPEČÍ - 22 Hodin
+    return 0.005;  
+
+  case 17 ... 38:
+    //NÍZKÉ NEBEZPEČÍ - 1,4 Hodin
+    return 0.08;
+
+  case 39 ... 45:
+    //STŘEDNÍ NEBEZPEČÍ - 0,5 Hodiny
+    return 0.2;
+
+  case 46 ... 60:
+    //MÍRNĚ VYSOKÉ NEBEZPEČÍ - 10 minut 
+    return 0.66;
+
+  case 61 ... 80:
+    //VYSOKÉ NEBEZPEČÍ - 100 sekund 
+    return 4;
+
+  case 81 ... 100:
+    //EXTRÉMNÍ NEBEZPEČÍ - 2,5 sekundy
+    return 40;
+
+  default:
+    return 0;
+  }
+}
+
+void dealDamage(){
+    radiation += calculateDamage(calculateRadiationPercent());
 }
 
 void setup() {
@@ -78,19 +164,33 @@ void loop() {
 
   // --- BLOK 1: Zobrazení dat z radiace ---
   display.setCursor(0, 16);
-  if (packetReceived) {
-    display.print("Vysilac ID: ");
-    display.println(incomingData.transmitterID);
 
+  if (radiation >= 100) {
+  display.clearDisplay();
+  display.setCursor(0, 0); // Vždy resetovat kurzor na začátek
+  
+  display.println("ZONA TE POHLTILA...");
+  display.println(); 
+  display.println("Vrat se do baru");
+  display.println("a vyckej na respawn.");
+  
+  display.display();
+  return;
+} else if (packetReceived) {
     display.print("Lokace:");
     display.println(incomingData.name);
     
-    display.print("RSSI signal: ");
-    display.print(lastRssi);
+    display.print("Avg: ");
+    display.print(calculateAverageRssi());
     display.println(" dBm");
+
+    display.print("Radiation: ");
+    display.print(radiation);
+    display.println("/100");
   } else {
     display.println("Hledam signal...");
   }
+
 
   // --- BLOK 2: Čtení NFC karty ---
   display.setCursor(0, 42);
@@ -109,7 +209,17 @@ void loop() {
 
   // Odeslání dat z bufferu do fyzického displeje
   display.display();
+
+  if(reset < 12){
+    reset++;
+  }else{
+    dealDamage();
+    reset = 0;
+    gotRssi = 0;
+    iterations = 0;
+    bannedAddrs.clear();
+  }
   
   // Krátká pauza pro stabilizaci displeje a snížení zbytečného vytížení CPU
-  delay(150);
+  delay(250);
 }
