@@ -99,20 +99,20 @@ double calculateDamage(int percent){
     return 0.005;  
 
   case 17 ... 38:
-    //NÍZKÉ NEBEZPEČÍ - 1,4 Hodin
-    return 0.08;
+    //NÍZKÉ NEBEZPEČÍ - 1,1 Hodin
+    return 0.1;
 
   case 39 ... 45:
-    //STŘEDNÍ NEBEZPEČÍ - 0,5 Hodiny
-    return 0.2;
+    //STŘEDNÍ NEBEZPEČÍ - 0,16 Hodiny
+    return 0.6;
 
   case 46 ... 60:
-    //MÍRNĚ VYSOKÉ NEBEZPEČÍ - 10 minut 
-    return 0.66;
+    //MÍRNĚ VYSOKÉ NEBEZPEČÍ - 100 sekund 
+    return 4;
 
   case 61 ... 80:
-    //VYSOKÉ NEBEZPEČÍ - 100 sekund 
-    return 4;
+    //VYSOKÉ NEBEZPEČÍ - 5 sekund 
+    return 20;
 
   case 81 ... 100:
     //EXTRÉMNÍ NEBEZPEČÍ - 2,5 sekundy
