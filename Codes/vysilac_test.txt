@@ -1,6 +1,16 @@
 #include <WiFi.h>
 #include <esp_now.h>
 
+//Importy pro displej
+#include <Wire.h>             // I2C komunikace pro displej
+#include <Adafruit_GFX.h>      // Grafická knihovna (kreslení textu, čar)
+#include <Adafruit_SSD1306.h>  // Ovládač konkrétního OLED displeje
+
+//Tvorba globálních instancí a jejich řídících pinů
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
 // 1. DATOVÁ STRUKTURA
 // Musí mít přesně stejné položky a pořadí jako v přijímači!
 typedef struct struct_message {
@@ -40,8 +50,10 @@ void setup() {
 
   // Nastavení hodnot, které má tento konkrétní vysílač posílat
   myData.transmitterID = 1;     // ID anomálie č. 1
-  myData.radiationPower = 1;  // Základní výkon radiace
+  myData.radiationPower = 1;  // Základní síla záření vysílače <0.5 - 1>
   myData.name = "Dead forest";
+
+  startDisplay();
 }
 
 void loop() {
@@ -56,4 +68,25 @@ void loop() {
 
   // Vysíláme každých 300 ms (cca 3x za sekundu)
   delay(300);
+}
+
+void startDisplay(){
+  // 1. Start OLED displeje na I2C adrese 0x3C
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED displej selhal!");
+    for(;;); // Nekonečná smyčka při chybě (stop)
+  }
+
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("Vysilac");
+
+  display.setCursor(0, 16);
+  display.print("Name: ");
+  display.println(myData.name);
+  display.print("ID: ");
+  display.println(myData.transmitterID);
+  display.display();
 }

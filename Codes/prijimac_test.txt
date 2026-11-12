@@ -80,6 +80,10 @@ double calculateAverageRssi(){
 
 int calculateRadiationPercent(){
   int avgRssi = calculateAverageRssi(); 
+  if(gotRssi == 0){
+    return 0;
+  }
+
   int clampedRssi = constrain(avgRssi, -90, -40); 
   
   // Převod z intervalu <-90, -40> na interval <0.0, 1.0>
@@ -94,7 +98,11 @@ double calculateDamage(int percent){
   Serial.println("The percent is");
   Serial.println(percent);
     switch (percent) {
-  case 0 ... 16:
+  case 0:
+  //Žádné nebezpečí
+  return 0;
+
+  case 1 ... 16:
     //VELMI NÍZKÉ NEBEZPEČÍ - 22 Hodin
     return 0.005;  
 
@@ -155,6 +163,7 @@ void setup() {
 }
 
 void loop() {
+  Serial.println(radiation);
   // Smazání vnitřního bufferu displeje
   display.clearDisplay();
   
