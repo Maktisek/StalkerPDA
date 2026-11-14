@@ -1,0 +1,12 @@
+V poslední době přestávám mít přehled o tom, co všechno je a není. Bylo by dobré si tedy sepsat všechny body, které ještě musím splnit: 
+
+1) Zlepšit zobrazení na displeji jak pro vysílač tak přijímač. 
+2) Přidat tlačítko na reset (čistě pro debugging)
+3) Přidat bzučák na indikaci smrti
+4) Podívat se po bzučáku/repráku, který by dokázal simulovat zvuky dozimetru 
+5) Druý nákup (dupont kabely, další displeje, nepájivé pole, bzučák/reprák)
+6) Postavit druhý vysílač (zatím mi chybí buď kabely či nepájivé pole)
+7) Zoptimalizovat damage
+x) První fyzická realizace (mimo nepájivé pole)
+
+x - neznámý krok

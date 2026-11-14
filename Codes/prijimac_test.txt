@@ -2,6 +2,7 @@
 #include <Wire.h>             // I2C komunikace pro displej
 #include <Adafruit_GFX.h>      // Grafická knihovna (kreslení textu, čar)
 #include <Adafruit_SSD1306.h>  // Ovládač konkrétního OLED displeje
+#include <Fonts/TomThumb.h> //Mikro font
 
 //Importy pro NFC čtečku
 #include <SPI.h>               // SPI komunikace pro NFC čtečku
@@ -23,6 +24,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 #define RST_PIN 4  // Reset pin pro RC522
 MFRC522 rfc522(SS_PIN, RST_PIN);
 
+//Tvorba tlačítek
+#define BUTTON_PIN 16
+bool pressed = false;
+
 //Tvorba structu pro přijímaní dat
 typedef struct struct_message {
   String name;
@@ -32,11 +37,11 @@ typedef struct struct_message {
 
 struct_message incomingData; // Proměnná pro uložení přijatých dat
 
-int lastRssi = 0;          
+int lastRssi = 0;
 int peakRssi = -90;
 int currentLeader = -1;
-bool packetReceived = false; 
-std::unordered_set<int> bannedAddrs; 
+bool packetReceived = false;
+std::unordered_set<int> bannedAddrs;
 
 //Tyto proměnné se starají o svůj vlastní systém segregace vysílačů
 int gotRssi = 0;
@@ -45,26 +50,26 @@ int reset = 0;
 
 double radiation = 0;
 
+bool lastRect = true;
 
 // Callback zavolaný automaticky HW přerušením při přijetí zprávy
 void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingDataPtr, int len) {
-  // memcpy překopíruje syrové bajty z paměti přímo do naší struktury
   memcpy(&incomingData, incomingDataPtr, sizeof(incomingData));
 
-  if(bannedAddrs.find(incomingData.transmitterID) != bannedAddrs.end()){
-      return;
+  if (bannedAddrs.find(incomingData.transmitterID) != bannedAddrs.end()) {
+    return;
   }
 
-  lastRssi = info->rx_ctrl->rssi; 
+  lastRssi = info->rx_ctrl->rssi;
   lastRssi *= incomingData.radiationPower;
 
-  if(lastRssi > peakRssi && incomingData.transmitterID != currentLeader){
+  if (lastRssi > peakRssi && incomingData.transmitterID != currentLeader) {
     bannedAddrs.insert(incomingData.transmitterID);
     currentLeader = incomingData.transmitterID;
     peakRssi = lastRssi;
   }
 
-  if(incomingData.transmitterID != currentLeader){
+  if (incomingData.transmitterID != currentLeader) {
     return;
   }
 
@@ -73,75 +78,137 @@ void OnDataRecv(const esp_now_recv_info *info, const uint8_t *incomingDataPtr, i
   iterations++;
 }
 
-double calculateAverageRssi(){
-  if(iterations == 0) return 0.0; //Pokud jeste nebyla namerena data
-  return (double) gotRssi/iterations; //Jak byl prumerne hrac ozaren
+double calculateAverageRssi() {
+  if (iterations == 0) return 0.0;
+  return (double)gotRssi / iterations;
 }
 
-int calculateRadiationPercent(){
-  int avgRssi = calculateAverageRssi(); 
-  if(gotRssi == 0){
+int calculateRadiationPercent() {
+  int avgRssi = calculateAverageRssi();
+  if (gotRssi == 0) {
     return 0;
   }
 
-  int clampedRssi = constrain(avgRssi, -90, -40); 
-  
-  // Převod z intervalu <-90, -40> na interval <0.0, 1.0>
-  // Rozdíl od -90 do -40 je přesně 50 jednotek
-  float normalized = (clampedRssi + 90.0f) / 50.0f; 
-  float curved = pow(normalized, 1.4f); 
+  int clampedRssi = constrain(avgRssi, -90, -40);
+  float normalized = (clampedRssi + 90.0f) / 50.0f;
+  float curved = pow(normalized, 1.4f);
 
-  return (int)(curved * 100.0f); 
+  return (int)(curved * 100.0f);
 }
 
-double calculateDamage(int percent){
-  Serial.println("The percent is");
-  Serial.println(percent);
-    switch (percent) {
-  case 0:
-  //Žádné nebezpečí
-  return 0;
-
-  case 1 ... 16:
-    //VELMI NÍZKÉ NEBEZPEČÍ - 22 Hodin
-    return 0.005;  
-
-  case 17 ... 38:
-    //NÍZKÉ NEBEZPEČÍ - 1,1 Hodin
-    return 0.1;
-
-  case 39 ... 45:
-    //STŘEDNÍ NEBEZPEČÍ - 0,16 Hodiny
-    return 0.6;
-
-  case 46 ... 60:
-    //MÍRNĚ VYSOKÉ NEBEZPEČÍ - 100 sekund 
-    return 4;
-
-  case 61 ... 80:
-    //VYSOKÉ NEBEZPEČÍ - 5 sekund 
-    return 20;
-
-  case 81 ... 100:
-    //EXTRÉMNÍ NEBEZPEČÍ - 2,5 sekundy
-    return 40;
-
-  default:
-    return 0;
+double calculateDamage(int percent) {
+  switch (percent) {
+    case 0:          return 0;
+    case 1 ... 16:   return 0.005;
+    case 17 ... 38:  return 0.1;
+    case 39 ... 45:  return 0.6;
+    case 46 ... 60:  return 4;
+    case 61 ... 80:  return 20;
+    case 81 ... 100: return 6;
+    default:         return 0;
   }
 }
 
-void dealDamage(){
-    radiation += calculateDamage(calculateRadiationPercent());
+void dealDamage() {
+  radiation += calculateDamage(calculateRadiationPercent());
+  if (radiation > 100.0) {
+    radiation = 100.0;
+  }
+}
+
+// Převod procent radiace na text úrovně nebezpečí (max 9 znaků, aby nepřetekl řádek)
+const char* getDangerLevelText(int percent) {
+  if (percent == 0)  return "ZADNE";
+  if (percent <= 16) return "ZANEDBATELNE";
+  if (percent <= 38) return "NIZKE";
+  if (percent <= 45) return "STREDNI";
+  if (percent <= 60) return "VYSSI";
+  if (percent <= 80) return "VYSOKE";
+  return "EXTREMNI";
+}
+
+// Vykreslení spodního ukazatele po 10 % (0 dílků = plné zdraví, 10 dílků = smrt)
+void drawRadiationBar(double currentRadiation) {
+  // Vnější rámeček dole na displeji (x=0, y=40, šířka=128, výška=24)
+  display.drawRect(0, 40, 128, 24, WHITE);
+
+  // Výpočet počtu zobrazených obdélníků (po 10 %)
+  int activeBlocks = constrain((int)(currentRadiation / 10.0), 0, 10);
+
+  const int startX = 5;   // Levý vnitřní okraj
+  const int startY = 44;  // Horní vnitřní okraj
+  const int blockW = 10;  // Šířka jednoho dílku
+  const int blockH = 16;  // Výška jednoho dílku
+  const int stepX  = 12;  // Šířka dílku (10 px) + mezera (2 px)
+
+
+  int x = startX;
+  for (int i = 0; i < activeBlocks; i++) {
+    x = startX + (i * stepX);
+    display.fillRect(x, startY, blockW, blockH, WHITE);
+  }
+
+  if((int) currentRadiation % 10 >= 5 && activeBlocks < 10 && lastRect){
+    if(activeBlocks > 0){
+      x += stepX;
+    }
+    display.drawRect(x, startY, blockW, blockH, WHITE);
+    lastRect = false;
+  }else{
+    lastRect = true;
+  }
+}
+
+// Kompletní překreslení obrazovky PDA
+void updateDisplay() {
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+
+  //Nadpis
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("PDA");
+
+  // 2. Prostřední informační řádky
+  if (radiation >= 100.0) {
+    display.setCursor(0, 16);
+    display.println("ZONA TE POHLTILA");
+    display.setCursor(0, 25);
+    display.println("Vrat se do baru!");
+  } else {
+    // Řádek o lokaci
+    display.setCursor(0, 16);
+    display.print("LOKACE: ");
+    if (packetReceived) {
+      display.println(incomingData.name);
+    } else {
+      display.println("Hledam...");
+    }
+
+    // Řádek o úrovni nebezpečí
+    display.setCursor(0, 25);
+    display.print("NEBEZPECI: ");
+    if (packetReceived) {
+      int percent = calculateRadiationPercent();
+      display.println(getDangerLevelText(percent));
+    } else {
+      display.println("---");
+    }
+  }
+
+  // 3. Spodní bar po 10 %
+  drawRadiationBar(radiation);
+
+  display.display();
 }
 
 void setup() {
-  Serial.begin(115200); // Sériový monitor pro ladění na PC
+  Serial.begin(115200);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  // 1. Start OLED displeje na I2C adrese 0x3C
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println("OLED displej selhal!");
-    for(;;); // Nekonečná smyčka při chybě (stop)
+    for (;;);
   }
   display.clearDisplay();
   display.setTextColor(WHITE);
@@ -150,85 +217,50 @@ void setup() {
   display.println("Hello, stalker...");
   display.display();
 
-  // 2. Start NFC čtečky přes SPI
   SPI.begin();
   rfc522.PCD_Init();
 
-  // 3. Start ESP-NOW
-  WiFi.mode(WIFI_STA); // Wi-Fi v režimu stanice (požadováno pro ESP-NOW)
+  WiFi.mode(WIFI_STA);
   if (esp_now_init() == ESP_OK) {
-    // Registrace námi vytvořeného Event Listeneru / Callbacku
     esp_now_register_recv_cb(OnDataRecv);
   }
 }
 
 void loop() {
+  //Kontrola stisknutí tlačítka 
+  if(digitalRead(BUTTON_PIN) == LOW && !pressed){
+    pressed = true;
+    radiation = 0;
+  }
+
+  if(digitalRead(BUTTON_PIN) == HIGH && pressed){
+    pressed = false;
+  }
+
   Serial.println(radiation);
-  // Smazání vnitřního bufferu displeje
-  display.clearDisplay();
-  
-  // Nadpis
-  display.setCursor(0, 0);
-  display.println("PDA");
 
-  // --- BLOK 1: Zobrazení dat z radiace ---
-  display.setCursor(0, 16);
-
-  if (radiation >= 100) {
-  display.clearDisplay();
-  display.setCursor(0, 0); // Vždy resetovat kurzor na začátek
-  
-  display.println("ZONA TE POHLTILA...");
-  display.println(); 
-  display.println("Vrat se do baru");
-  display.println("a vyckej na respawn.");
-  
-  display.display();
-  return;
-} else if (packetReceived) {
-    display.print("Lokace:");
-    display.println(incomingData.name);
-    
-    display.print("Avg: ");
-    display.print(calculateAverageRssi());
-    display.println(" dBm");
-
-    display.print("Radiation: ");
-    display.print(radiation);
-    display.println("/100");
-  } else {
-    display.println("Hledam signal...");
-  }
-
-
-  // --- BLOK 2: Čtení NFC karty ---
-  display.setCursor(0, 42);
-  // Zjištění, zda je u čtečky přítomna nová karta a zda lze přečíst její UID
+  // Čtení NFC karty (připraveno pro budoucí léčení / reset radiace)
   if (rfc522.PICC_IsNewCardPresent() && rfc522.PICC_ReadCardSerial()) {
-    display.print("NFC Tag: ");
-    // Vypíšeme bajty unikátního ID (UID) karty v hexadecimálním formátu
+    Serial.print("NFC Tag UID: ");
     for (byte i = 0; i < rfc522.uid.size; i++) {
-      display.print(rfc522.uid.uidByte[i], HEX);
+      Serial.print(rfc522.uid.uidByte[i], HEX);
     }
-    // Ukončení komunikace s daným tagem
+    Serial.println();
     rfc522.PICC_HaltA();
-  } else {
-    display.println("NFC: Cekam na tag...");
   }
 
-  // Odeslání dat z bufferu do fyzického displeje
-  display.display();
+  // Vykreslení nového UI na OLED displej
+  updateDisplay();
 
-  if(reset < 12){
+  if (reset < 12) {
     reset++;
-  }else{
+  } else {
     dealDamage();
     reset = 0;
     gotRssi = 0;
     iterations = 0;
     bannedAddrs.clear();
   }
-  
-  // Krátká pauza pro stabilizaci displeje a snížení zbytečného vytížení CPU
+
   delay(250);
 }
